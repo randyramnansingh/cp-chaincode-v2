@@ -38,23 +38,17 @@ var recentLeapYear = 2016
 // SimpleChaincode example simple Chaincode implementation
 type SimpleChaincode struct {
 }
-
-func generateCUSIPSuffix(issueDate string, days int) (string, error) {
+func generateCUSIPSuffix(days int) (string, error) {
 
 	t, err := msToTime(issueDate)
 	if err != nil {
 		return "", err
 	}
 
-	maturityDate := t.AddDate(0, 0, days)
-	month := int(maturityDate.Month())
-	day := maturityDate.Day()
-
-	suffix := seventhDigit[month] + eigthDigit[day]
+	suffix := t
 	return suffix, nil
 
 }
-
 const (
 	millisPerSecond     = int64(time.Second / time.Millisecond)
 	nanosPerMillisecond = int64(time.Millisecond / time.Nanosecond)
@@ -82,8 +76,6 @@ type CP struct {
 	Ticker    string  `json:"ticker"`
 	Par       float64 `json:"par"`
 	Qty       int     `json:"qty"`
-	Discount  float64 `json:"discount"`
-	Maturity  int     `json:"maturity"`
 	Owners    []Owner `json:"owner"`
 	Issuer    string  `json:"issuer"`
 	IssueDate string  `json:"issueDate"`
@@ -140,7 +132,7 @@ func (t *SimpleChaincode) createAccounts(stub *shim.ChaincodeStub, args []string
 			prefix = strconv.Itoa(counter) + suffix
 		}
 		var assetIds []string
-		account = Account{ID: "company" + strconv.Itoa(counter), Prefix: prefix, CashBalance: 10000000.0, AssetsIds: assetIds}
+		account = Account{ID: "company" + strconv.Itoa(counter), Prefix: prefix, CashBalance: 1000.0, AssetsIds: assetIds}
 		accountBytes, err := json.Marshal(&account)
 		if err != nil {
 			fmt.Println("error creating account" + account.ID)
@@ -168,7 +160,7 @@ func (t *SimpleChaincode) createAccount(stub *shim.ChaincodeStub, args []string)
     var assetIds []string
     suffix := "000A"
     prefix := username + suffix
-    var account = Account{ID: username, Prefix: prefix, CashBalance: 10000000.0, AssetsIds: assetIds}
+    var account = Account{ID: username, Prefix: prefix, CashBalance: 1000.0, AssetsIds: assetIds}
     accountBytes, err := json.Marshal(&account)
     if err != nil {
         fmt.Println("error creating account" + account.ID)
@@ -221,34 +213,6 @@ func (t *SimpleChaincode) createAccount(stub *shim.ChaincodeStub, args []string)
 }
 
 func (t *SimpleChaincode) issueCommercialPaper(stub *shim.ChaincodeStub, args []string) ([]byte, error) {
-
-	/*		0
-		json
-	  	{
-			"ticker":  "string",
-			"par": 0.00,
-			"qty": 10,
-			"discount": 7.5,
-			"maturity": 30,
-			"owners": [ // This one is not required
-				{
-					"company": "company1",
-					"quantity": 5
-				},
-				{
-					"company": "company3",
-					"quantity": 3
-				},
-				{
-					"company": "company4",
-					"quantity": 2
-				}
-			],				
-			"issuer":"company2",
-			"issueDate":"1456161763790"  (current time in milliseconds as a string)
-
-		}
-	*/
 	//need one arg
 	if len(args) != 1 {
 		fmt.Println("error invalid arguments")
@@ -274,12 +238,13 @@ func (t *SimpleChaincode) issueCommercialPaper(stub *shim.ChaincodeStub, args []
 		fmt.Println("Error Getting state of - " + accountPrefix + cp.Issuer)
 		return nil, errors.New("Error retrieving account " + cp.Issuer)
 	}
+	// grab account from blockchain, store to account var
 	err = json.Unmarshal(accountBytes, &account)
 	if err != nil {
 		fmt.Println("Error Unmarshalling accountBytes")
 		return nil, errors.New("Error retrieving account " + cp.Issuer)
 	}
-	
+	//appending new bet/cp to account's assets
 	account.AssetsIds = append(account.AssetsIds, cp.CUSIP)
 
 	// Set the issuer to be the owner of all quantity
@@ -288,8 +253,7 @@ func (t *SimpleChaincode) issueCommercialPaper(stub *shim.ChaincodeStub, args []
 	owner.Quantity = cp.Qty
 	
 	cp.Owners = append(cp.Owners, owner)
-
-	suffix, err := generateCUSIPSuffix(cp.IssueDate, cp.Maturity)
+	suffix, err := generateCUSIPSuffix(cp.IssueDate)
 	if err != nil {
 		fmt.Println("Error generating cusip")
 		return nil, errors.New("Error generating CUSIP")
@@ -365,7 +329,7 @@ func (t *SimpleChaincode) issueCommercialPaper(stub *shim.ChaincodeStub, args []
 		fmt.Println("Issue commercial paper %+v\n", cp)
 		return nil, nil
 	} else {
-		fmt.Println("CUSIP exists")
+		/*fmt.Println("CUSIP exists")
 		
 		var cprx CP
 		fmt.Println("Unmarshalling CP " + cp.CUSIP)
@@ -396,10 +360,84 @@ func (t *SimpleChaincode) issueCommercialPaper(stub *shim.ChaincodeStub, args []
 		}
 
 		fmt.Println("Updated commercial paper %+v\n", cprx)
+		return nil, nil*/
+		fmt.Println("Bet already exists on blockchain")
 		return nil, nil
 	}
 }
+func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([]byte, error)  {
+	/*- Function to announce winner and pay out bets
+	- currently defaults to paying out x2 the original wager, can make this dynamic with an argument
+	grabs all bets/cps by using the PaperKeys array
+		- will need to implement some kind of time tracking feature for last game, might create a block with a unique CUSIP 
+	- compares qty (currently our variable for player) if it matches we credit account with x2 the wager, otherwise we deduct their wager
+	- we clear the paperkeys array and put it back in prep for the next game
+	- get account use username000Ausername
+	- Bet/CP stores username as Issuer
+	*/ 
+	//need one arg
+	if len(args) != 1 {
+		fmt.Println("error invalid arguments")
+		return nil, errors.New("Incorrect number of arguments.")
+	}
+	winner = args[0];
+	var err error
+	var account Account
 
+	// Get list of all the keys
+	keysBytes, err := stub.GetState("PaperKeys")
+	if err != nil {
+		fmt.Println("Error retrieving paper keys")
+		return nil, errors.New("Error retrieving paper keys")
+	}
+	var keys []string
+	err = json.Unmarshal(keysBytes, &keys)
+	if err != nil {
+		fmt.Println("Error unmarshalling paper keys")
+		return nil, errors.New("Error unmarshalling paper keys")
+	}
+
+	// Get all the cps
+	for _, value := range keys {
+		cpBytes, err := stub.GetState(value)
+		
+		var cp CP
+		err = json.Unmarshal(cpBytes, &cp)
+		if err != nil {
+			fmt.Println("Error retrieving cp " + value)
+			return nil, errors.New("Error retrieving cp " + value)
+		}
+		accId = cp.Issuer + "000A" + cp.Issuer
+		accBytes, err := stub.GetState(accId)
+		if err != nil {
+		fmt.Println("Error retrieving user account")
+		return nil, errors.New("Error retrieving user account")
+		}
+		err = json.Unmarshal(accBytes, &account)
+		if err != nil {
+			fmt.Println("Error unmarshalling paper keys")
+			return nil, errors.New("Error unmarshalling paper keys")
+		}
+		if cp.qty == winner {
+			account.CashBalance := account.CashBalance + (2 * cp.par) 
+		}
+		else {
+			account.CashBalance := account.CashBalance - cp.par
+		}
+		fmt.Println("Marshalling account bytes to write")
+		accountBytesToWrite, err := json.Marshal(&account)
+		if err != nil {
+			fmt.Println("Error marshalling account")
+			return nil, errors.New("Error issuing commercial paper")
+		}
+		err = stub.PutState(accId, accountBytesToWrite)
+		if err != nil {
+			fmt.Println("Error putting state on accountBytesToWrite")
+			return nil, errors.New("Error issuing payouts")
+		}
+		return nil, nil
+	}	
+}
 
 func GetAllCPs(stub *shim.ChaincodeStub) ([]CP, error){
 	
@@ -475,15 +513,6 @@ func GetCompany(companyID string, stub *shim.ChaincodeStub) (Account, error){
 
 // Still working on this one
 func (t *SimpleChaincode) transferPaper(stub *shim.ChaincodeStub, args []string) ([]byte, error) {
-	/*		0
-		json
-	  	{
-			  "CUSIP": "",
-			  "fromCompany":"",
-			  "toCompany":"",
-			  "quantity": 1
-		}
-	*/
 	//need one arg
 	if len(args) != 1 {
 		return nil, errors.New("Incorrect number of arguments. Expecting commercial paper record")
@@ -738,6 +767,9 @@ func (t *SimpleChaincode) Invoke(stub *shim.ChaincodeStub, function string, args
 	} else if function == "createAccount" {
         fmt.Println("Firing createAccount")
         return t.createAccount(stub, args)
+    } else if function == "payoutBets" {
+        fmt.Println("Firing payoutBets")
+        return t.payoutBets(stub, args)
     } else if function == "init" {
         fmt.Println("Firing init")
         return t.Init(stub, "init", args)
