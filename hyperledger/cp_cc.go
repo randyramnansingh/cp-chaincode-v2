@@ -38,6 +38,7 @@ var recentLeapYear = 2016
 // SimpleChaincode example simple Chaincode implementation
 type SimpleChaincode struct {
 }
+
 func generateCUSIPSuffix(days int) (string, error) {
 
 	t, err := msToTime(issueDate)
