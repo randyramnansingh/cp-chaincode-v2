@@ -119,28 +119,6 @@ func (t *SimpleChaincode) Init(stub *shim.ChaincodeStub, function string, args [
 }
 
 func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([]byte, error)  {
-	/*- Function to announce winner and pay out bets
-	- currently defaults to paying out x2 the original wager, can make this dynamic with an argument
-	grabs all bets/cps by using the PaperKeys array
-		- will need to implement some kind of time tracking feature for last game, might create a block with a unique CUSIP 
-	- compares qty (currently our variable for player) if it matches we credit account with x2 the wager, otherwise we deduct their wager
-	- we clear the paperkeys array and put it back in prep for the next game
-	- get account use username000Ausername
-	- Bet/CP stores username as Issuer
-	*/ 
-	//need one arg
-	if len(args) != 1 {
-		fmt.Println("error invalid arguments")
-		return nil, errors.New("Incorrect number of arguments.")
-	}
-	//winner := args[0]
-
-	// Get list of all the keys
-	keysBytes, err := stub.GetState("PaperKeys")
-	if err != nil {
-		fmt.Println("Error retrieving paper keys")
-		return nil, errors.New("Error retrieving paper keys")
-	}
 	return nil, nil
 }
 
