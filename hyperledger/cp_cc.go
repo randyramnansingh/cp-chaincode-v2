@@ -1,14 +1,18 @@
 /*
 Copyright 2016 IBM
+
 Licensed under the Apache License, Version 2.0 (the "License")
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
+
     http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
 Licensed Materials - Property of IBM
 © Copyright IBM Corp. 2016
 */
@@ -136,7 +140,7 @@ func (t *SimpleChaincode) createAccounts(stub *shim.ChaincodeStub, args []string
 			prefix = strconv.Itoa(counter) + suffix
 		}
 		var assetIds []string
-		account = Account{ID: "company" + strconv.Itoa(counter), Prefix: prefix, CashBalance: 1000.0, AssetsIds: assetIds}
+		account = Account{ID: "company" + strconv.Itoa(counter), Prefix: prefix, CashBalance: 10000000.0, AssetsIds: assetIds}
 		accountBytes, err := json.Marshal(&account)
 		if err != nil {
 			fmt.Println("error creating account" + account.ID)
@@ -164,7 +168,7 @@ func (t *SimpleChaincode) createAccount(stub *shim.ChaincodeStub, args []string)
     var assetIds []string
     suffix := "000A"
     prefix := username + suffix
-    var account = Account{ID: username, Prefix: prefix, CashBalance: 1000.0, AssetsIds: assetIds}
+    var account = Account{ID: username, Prefix: prefix, CashBalance: 10000000.0, AssetsIds: assetIds}
     accountBytes, err := json.Marshal(&account)
     if err != nil {
         fmt.Println("error creating account" + account.ID)
@@ -242,6 +246,7 @@ func (t *SimpleChaincode) issueCommercialPaper(stub *shim.ChaincodeStub, args []
 			],				
 			"issuer":"company2",
 			"issueDate":"1456161763790"  (current time in milliseconds as a string)
+
 		}
 	*/
 	//need one arg
@@ -809,5 +814,3 @@ var eigthDigit = map[int]string{
 	30: "W",
 	31: "X",
 }
-Status API Training Shop Blog About
-© 2016 GitHub, Inc. Terms Privacy Security Contact Help
