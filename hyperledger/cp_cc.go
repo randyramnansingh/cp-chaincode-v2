@@ -35,14 +35,18 @@ var recentLeapYear = 2016
 type SimpleChaincode struct {
 }
 
-func generateCUSIPSuffix(issueDate string,) (string, error) {
+func generateCUSIPSuffix(issueDate string, days int) (string, error) {
 
 	t, err := msToTime(issueDate)
 	if err != nil {
 		return "", err
 	}
 
-	suffix := t
+	maturityDate := t.AddDate(0, 0, days)
+	month := int(maturityDate.Month())
+	day := maturityDate.Day()
+
+	suffix := seventhDigit[month] + eigthDigit[day]
 	return suffix, nil
 
 }
@@ -74,6 +78,8 @@ type CP struct {
 	Ticker    string  `json:"ticker"`
 	Par       float64 `json:"par"`
 	Qty       int     `json:"qty"`
+	Discount  float64 `json:"discount"`
+	Maturity  int     `json:"maturity"`
 	Owners    []Owner `json:"owner"`
 	Issuer    string  `json:"issuer"`
 	IssueDate string  `json:"issueDate"`
@@ -263,13 +269,12 @@ func (t *SimpleChaincode) issueCommercialPaper(stub *shim.ChaincodeStub, args []
 		fmt.Println("Error Getting state of - " + accountPrefix + cp.Issuer)
 		return nil, errors.New("Error retrieving account " + cp.Issuer)
 	}
-	// grab account from blockchain, store to account var
 	err = json.Unmarshal(accountBytes, &account)
 	if err != nil {
 		fmt.Println("Error Unmarshalling accountBytes")
 		return nil, errors.New("Error retrieving account " + cp.Issuer)
 	}
-	//appending new bet/cp to account's assets
+	
 	account.AssetsIds = append(account.AssetsIds, cp.CUSIP)
 
 	// Set the issuer to be the owner of all quantity
@@ -278,7 +283,8 @@ func (t *SimpleChaincode) issueCommercialPaper(stub *shim.ChaincodeStub, args []
 	owner.Quantity = cp.Qty
 	
 	cp.Owners = append(cp.Owners, owner)
-	suffix, err := generateCUSIPSuffix(cp.IssueDate)
+
+	suffix, err := generateCUSIPSuffix(cp.IssueDate, cp.Maturity)
 	if err != nil {
 		fmt.Println("Error generating cusip")
 		return nil, errors.New("Error generating CUSIP")
@@ -354,7 +360,7 @@ func (t *SimpleChaincode) issueCommercialPaper(stub *shim.ChaincodeStub, args []
 		fmt.Println("Issue commercial paper %+v\n", cp)
 		return nil, nil
 	} else {
-		/*fmt.Println("CUSIP exists")
+		fmt.Println("CUSIP exists")
 		
 		var cprx CP
 		fmt.Println("Unmarshalling CP " + cp.CUSIP)
@@ -385,11 +391,10 @@ func (t *SimpleChaincode) issueCommercialPaper(stub *shim.ChaincodeStub, args []
 		}
 
 		fmt.Println("Updated commercial paper %+v\n", cprx)
-		return nil, nil*/
-		fmt.Println("Bet already exists on blockchain")
 		return nil, nil
 	}
 }
+
 
 func GetAllCPs(stub *shim.ChaincodeStub) ([]CP, error){
 	
@@ -804,3 +809,5 @@ var eigthDigit = map[int]string{
 	30: "W",
 	31: "X",
 }
+Status API Training Shop Blog About
+© 2016 GitHub, Inc. Terms Privacy Security Contact Help
