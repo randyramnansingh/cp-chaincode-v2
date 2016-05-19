@@ -138,7 +138,7 @@ func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([
 			fmt.Println("Error from getallcps")
 			return nil, err
 		}
-	for _, curCP := range allCPs {
+	/*for _, curCP := range allCPs {
 		var account Account
 		accBytes, err := stub.GetState(cp.Issuer + "000A" + cp.Issuer)
 			if err != nil {
@@ -167,7 +167,7 @@ func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([
 				fmt.Println("Error putting state on accountBytesToWrite")
 				return nil, errors.New("Error issuing payouts")
 			}
-	}
+	}*/
 	fmt.Println("bets paid out successfully")
 	fmt.Println("resetting paper keys collection")
 	var blank []string
