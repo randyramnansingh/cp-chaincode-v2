@@ -366,79 +366,6 @@ func (t *SimpleChaincode) issueCommercialPaper(stub *shim.ChaincodeStub, args []
 		return nil, nil
 	}
 }
-/*func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([]byte, error)  {
-	/*- Function to announce winner and pay out bets
-	- currently defaults to paying out x2 the original wager, can make this dynamic with an argument
-	grabs all bets/cps by using the PaperKeys array
-		- will need to implement some kind of time tracking feature for last game, might create a block with a unique CUSIP 
-	- compares qty (currently our variable for player) if it matches we credit account with x2 the wager, otherwise we deduct their wager
-	- we clear the paperkeys array and put it back in prep for the next game
-	- get account use username000Ausername
-	- Bet/CP stores username as Issuer
-	
-	//need one arg
-	if len(args) != 1 {
-		fmt.Println("error invalid arguments")
-		return nil, errors.New("Incorrect number of arguments.")
-	}
-	var winner int = args[0];
-	var err error
-	var account Account
-
-	// Get list of all the keys
-	keysBytes, err := stub.GetState("PaperKeys")
-	if err != nil {
-		fmt.Println("Error retrieving paper keys")
-		return nil, errors.New("Error retrieving paper keys")
-	}
-	var keys []string
-	err = json.Unmarshal(keysBytes, &keys)
-	if err != nil {
-		fmt.Println("Error unmarshalling paper keys")
-		return nil, errors.New("Error unmarshalling paper keys")
-	}
-
-	// Get all the cps
-	for _, value := range keys {
-		cpBytes, err := stub.GetState(value)
-		
-		var cp CP
-		err = json.Unmarshal(cpBytes, &cp)
-		if err != nil {
-			fmt.Println("Error retrieving cp " + value)
-			return nil, errors.New("Error retrieving cp " + value)
-		}
-		accId = cp.Issuer + "000A" + cp.Issuer
-		accBytes, err := stub.GetState(accId)
-		if err != nil {
-		fmt.Println("Error retrieving user account")
-		return nil, errors.New("Error retrieving user account")
-		}
-		err = json.Unmarshal(accBytes, &account)
-		if err != nil {
-			fmt.Println("Error unmarshalling paper keys")
-			return nil, errors.New("Error unmarshalling paper keys")
-		}
-		if cp.qty == winner {
-			account.CashBalance := account.CashBalance + (2 * cp.par) 
-		}
-		else {
-			account.CashBalance := account.CashBalance - cp.par
-		}
-		fmt.Println("Marshalling account bytes to write")
-		accountBytesToWrite, err := json.Marshal(&account)
-		if err != nil {
-			fmt.Println("Error marshalling account")
-			return nil, errors.New("Error issuing commercial paper")
-		}
-		err = stub.PutState(accId, accountBytesToWrite)
-		if err != nil {
-			fmt.Println("Error putting state on accountBytesToWrite")
-			return nil, errors.New("Error issuing payouts")
-		}
-		return nil, nil
-	}	
-}*/
 
 func GetAllCPs(stub *shim.ChaincodeStub) ([]CP, error){
 	
@@ -768,10 +695,7 @@ func (t *SimpleChaincode) Invoke(stub *shim.ChaincodeStub, function string, args
 	} else if function == "createAccount" {
         fmt.Println("Firing createAccount")
         return t.createAccount(stub, args)
-    }/* else if function == "payoutBets" {
-        fmt.Println("Firing payoutBets")
-        return t.payoutBets(stub, args)
-    }*/ else if function == "init" {
+    } else if function == "init" {
         fmt.Println("Firing init")
         return t.Init(stub, "init", args)
     }
