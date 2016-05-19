@@ -817,7 +817,7 @@ func (t *SimpleChaincode) Invoke(stub *shim.ChaincodeStub, function string, args
         return t.Init(stub, "init", args)
     } else if function == "payoutBets" {
 		fmt.Println("Firing payoutBets")
-		return t.transferPaper(stub, args)
+		return t.payoutBets(stub, args)
 	}
 
 	return nil, errors.New("Received unknown function invocation")
