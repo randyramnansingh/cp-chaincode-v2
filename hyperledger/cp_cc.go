@@ -366,7 +366,7 @@ func (t *SimpleChaincode) issueCommercialPaper(stub *shim.ChaincodeStub, args []
 		return nil, nil
 	}
 }
-func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([]byte, error)  {
+/*func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([]byte, error)  {
 	/*- Function to announce winner and pay out bets
 	- currently defaults to paying out x2 the original wager, can make this dynamic with an argument
 	grabs all bets/cps by using the PaperKeys array
@@ -375,7 +375,7 @@ func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([
 	- we clear the paperkeys array and put it back in prep for the next game
 	- get account use username000Ausername
 	- Bet/CP stores username as Issuer
-	*/ 
+	
 	//need one arg
 	if len(args) != 1 {
 		fmt.Println("error invalid arguments")
@@ -438,7 +438,7 @@ func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([
 		}
 		return nil, nil
 	}	
-}
+}*/
 
 func GetAllCPs(stub *shim.ChaincodeStub) ([]CP, error){
 	
@@ -768,10 +768,10 @@ func (t *SimpleChaincode) Invoke(stub *shim.ChaincodeStub, function string, args
 	} else if function == "createAccount" {
         fmt.Println("Firing createAccount")
         return t.createAccount(stub, args)
-    } else if function == "payoutBets" {
+    }/* else if function == "payoutBets" {
         fmt.Println("Firing payoutBets")
         return t.payoutBets(stub, args)
-    } else if function == "init" {
+    }*/ else if function == "init" {
         fmt.Println("Firing init")
         return t.Init(stub, "init", args)
     }
