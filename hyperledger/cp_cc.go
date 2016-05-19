@@ -133,7 +133,7 @@ func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([
 		fmt.Println("error invalid arguments")
 		return nil, errors.New("Incorrect number of arguments.")
 	}
-	winner := args[0]
+	//winner := args[0]
 
 	// Get list of all the keys
 	keysBytes, err := stub.GetState("PaperKeys")
