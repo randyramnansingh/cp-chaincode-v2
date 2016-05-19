@@ -133,6 +133,51 @@ func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([
 		fmt.Println("error invalid arguments")
 		return nil, errors.New("Incorrect number of arguments.")
 	}
+	allCPs, err := GetAllCPs(stub)
+		if err != nil {
+			fmt.Println("Error from getallcps")
+			return nil, err
+		}
+	for _, curCP := range allCPs {
+		var account Account
+		accBytes, err := stub.GetState(cp.Issuer + "000A" + cp.Issuer)
+			if err != nil {
+				fmt.Println("Error retrieving user account")
+				return nil, errors.New("Error retrieving user account")
+			}
+		err = json.Unmarshal(accBytes, &account)
+			if err != nil {
+				fmt.Println("Error unmarshalling account")
+				return nil, errors.New("Error unmarshalling account")
+			}
+		if curCP.qty != args[0] {
+			account.CashBalance := account.CashBalance - curCP.Par
+		}
+		else {
+			account.CashBalance := account.CashBalance + (2 * curCP.Par) 
+		}
+		fmt.Println("Marshalling account bytes to write")
+		accountBytesToWrite, err := json.Marshal(&account)
+			if err != nil {
+				fmt.Println("Error marshalling account")
+				return nil, errors.New("Error issuing commercial paper")
+			}
+		err = stub.PutState(accId, accountBytesToWrite)
+			if err != nil {
+				fmt.Println("Error putting state on accountBytesToWrite")
+				return nil, errors.New("Error issuing payouts")
+			}
+	}
+	fmt.Println("bets paid out successfully")
+	fmt.Println("resetting paper keys collection")
+	var blank []string
+	blankBytes, _ := json.Marshal(&blank)
+	err := stub.PutState("PaperKeys", blankBytes)
+    if err != nil {
+        fmt.Println("Failed to initialize paper key collection")
+    }
+
+	fmt.Println("Initialization complete")
 	return nil, nil
 }
 
