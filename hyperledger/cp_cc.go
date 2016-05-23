@@ -114,7 +114,8 @@ func (t *SimpleChaincode) Init(stub *shim.ChaincodeStub, function string, args [
 	return nil, nil
 }
 
-func (t *SimpleChaincode) clear(stub *shim.ChaincodeStub, args []string) ([]byte, error)  {
+func (t *SimpleChaincode) clear(stub *shim.ChaincodeStub) ([]byte, error)  {
+	var err error
 	fmt.Println("Reinitializing paper keys collection for new game")
 	var blank []string
 	blankBytes, _ := json.Marshal(&blank)
