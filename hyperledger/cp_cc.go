@@ -151,30 +151,25 @@ func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([
 
 	// Get all the cps
 	for _, value := range allCPs {
-		accId := accountPrefix + cp.Issuer
-		accBytes, err := stub.GetState(accId)
+		useracc, err := GetCompany(value.Issuer, stub)
 		if err != nil {
-			fmt.Println("Error retrieving user account")
-			return nil, errors.New("Error retrieving user account")
+			fmt.Println("Error from getCompany")
+			return nil, err
 		}
-		err = json.Unmarshal(accBytes, &account)
-		if err != nil {
-			fmt.Println("Error unmarshalling paper keys")
-			return nil, errors.New("Error unmarshalling paper keys")
-		}
+		fmt.Println("DEBUG: CP: " + value)
 		if value.Qty == winner {
-			account.CashBalance = account.CashBalance + (2 * value.Par)
+			useracc.CashBalance = useracc.CashBalance + (2 * value.Par)
 		}
 		if value.Qty != winner {
-			account.CashBalance = account.CashBalance - value.Par
+			useracc.CashBalance = useracc.CashBalance - value.Par
 		}
 		fmt.Println("Marshalling account bytes to write")
-		accountBytesToWrite, err := json.Marshal(&account)
+		accountBytesToWrite, err := json.Marshal(useracc)
 		if err != nil {
 			fmt.Println("Error marshalling account")
-			return nil, errors.New("Error issuing commercial paper")
+			return nil, errors.New("Error marshalling account")
 		}
-		err = stub.PutState(accId, accountBytesToWrite)
+		err = stub.PutState(accountPrefix + value.Issuer, accountBytesToWrite)
 		if err != nil {
 			fmt.Println("Error putting state on accountBytesToWrite")
 			return nil, errors.New("Error issuing payouts")
