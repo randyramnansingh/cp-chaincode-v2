@@ -46,11 +46,7 @@ func generateCUSIPSuffix(issueDate string, days int) (string, error) {
 		return "", err
 	}
 
-	maturityDate := t.AddDate(0, 0, days)
-	month := int(maturityDate.Month())
-	day := maturityDate.Day()
-
-	suffix := seventhDigit[month] + eigthDigit[day]
+	suffix := strconv.FormatInt(t.Unix(), 10)
 	return suffix, nil
 
 }
@@ -118,72 +114,38 @@ func (t *SimpleChaincode) Init(stub *shim.ChaincodeStub, function string, args [
 	return nil, nil
 }
 
-func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([]byte, error)  {
-	/*- Function to announce winner and pay out bets
-	- currently defaults to paying out x2 the original wager, can make this dynamic with an argument
-	grabs all bets/cps by using the PaperKeys array
-		- will need to implement some kind of time tracking feature for last game, might create a block with a unique CUSIP 
-	- compares qty (currently our variable for player) if it matches we credit account with x2 the wager, otherwise we deduct their wager
-	- we clear the paperkeys array and put it back in prep for the next game
-	- get account use username000Ausername
-	- Bet/CP stores username as Issuer
-	*/ 
-	//need one arg
-	if len(args) != 1 {
-		fmt.Println("error invalid arguments")
-		return nil, errors.New("Incorrect number of arguments.")
-	}
-	var err error
-	var account Account
-	
-	winner, err := strconv.Atoi(args[0])
-	if err != nil {
-		fmt.Println("error parsing winner")
-		return nil, errors.New("error parsing winner")
-	}
-	fmt.Println("DEBUG: Winner declared, player " + winner + " is the winner! Paying out bets.")
-	
-	allCPs, err := GetAllCPs(stub)
-	if err != nil {
-		fmt.Println("Error from getallcps")
-		return nil, err
-	}
-
-	// Get all the cps
-	for _, value := range allCPs {
-		useracc, err := GetCompany(value.Issuer, stub)
-		if err != nil {
-			fmt.Println("Error from getCompany")
-			return nil, err
-		}
-		fmt.Println("DEBUG: CP: " + value)
-		if value.Qty == winner {
-			useracc.CashBalance = useracc.CashBalance + (2 * value.Par)
-		}
-		if value.Qty != winner {
-			useracc.CashBalance = useracc.CashBalance - value.Par
-		}
-		fmt.Println("Marshalling account bytes to write")
-		accountBytesToWrite, err := json.Marshal(useracc)
-		if err != nil {
-			fmt.Println("Error marshalling account")
-			return nil, errors.New("Error marshalling account")
-		}
-		err = stub.PutState(accountPrefix + value.Issuer, accountBytesToWrite)
-		if err != nil {
-			fmt.Println("Error putting state on accountBytesToWrite")
-			return nil, errors.New("Error issuing payouts")
-		}
-	}
-    fmt.Println("Reinitializing paper keys collection for new game")
+func (t *SimpleChaincode) clear(stub *shim.ChaincodeStub, args []string) ([]byte, error)  {
+	fmt.Println("Reinitializing paper keys collection for new game")
 	var blank []string
 	blankBytes, _ := json.Marshal(&blank)
-	err := stub.PutState("PaperKeys", blankBytes)
+	err = stub.PutState("PaperKeys", blankBytes)
     if err != nil {
         fmt.Println("Failed to reinitialize paper key collection")
     }
 
 	fmt.Println("Reinitialization complete")
+	return nil, nil
+}
+
+func (t *SimpleChaincode) addOne(stub *shim.ChaincodeStub) ([]byte, error) {
+	fmt.Println("trying to add one")
+	useracc, err := GetCompany("randy", stub)
+	if err != nil {
+		fmt.Println("Error from getCompany")
+		return nil, err
+	}
+	useracc.CashBalance = useracc.CashBalance + 1 
+	fmt.Println("Marshalling account bytes to write")
+	accountBytesToWrite, err := json.Marshal(useracc)
+	if err != nil {
+		fmt.Println("Error marshalling account")
+		return nil, errors.New("Error marshalling account")
+	}
+	err = stub.PutState(accountPrefix + "randy", accountBytesToWrite)
+	if err != nil {
+		fmt.Println("Error putting state on accountBytesToWrite")
+		return nil, errors.New("Error issuing payouts")
+	}
 	return nil, nil
 }
 
@@ -483,8 +445,8 @@ func GetAllCPs(stub *shim.ChaincodeStub) ([]CP, error){
 	var keys []string
 	err = json.Unmarshal(keysBytes, &keys)
 	if err != nil {
-		fmt.Println("Error unmarshalling paper keys")
-		return nil, errors.New("Error unmarshalling paper keys")
+		fmt.Println("GetAllCPs: Error unmarshalling paper keys print")
+		return nil, errors.New("GetAllCPs: Error unmarshalling paper keys")
 	}
 
 	// Get all the cps
@@ -541,184 +503,101 @@ func GetCompany(companyID string, stub *shim.ChaincodeStub) (Account, error){
 	return company, nil
 }
 
-
-// Still working on this one
 func (t *SimpleChaincode) transferPaper(stub *shim.ChaincodeStub, args []string) ([]byte, error) {
-	/*		0
-		json
-	  	{
-			  "CUSIP": "",
-			  "fromCompany":"",
-			  "toCompany":"",
-			  "quantity": 1
-		}
-	*/
+	/*- Function to announce winner and pay out bets
+	- currently defaults to paying out x2 the original wager, can make this dynamic with an argument
+	grabs all bets/cps by using the PaperKeys array
+		- will need to implement some kind of time tracking feature for last game, might create a block with a unique CUSIP 
+	- compares qty (currently our variable for player) if it matches we credit account with x2 the wager, otherwise we deduct their wager
+	- we clear the paperkeys array and put it back in prep for the next game
+	- get account use username000Ausername
+	- Bet/CP stores username as Issuer
+	*/ 
 	//need one arg
 	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting commercial paper record")
+		fmt.Println("error invalid arguments")
+		return nil, errors.New("Incorrect number of arguments.")
 	}
+	fmt.Println("DEBUG: okay number of arguments")
+	var err error
+	fmt.Println("DEBUG: getting list of keys in byte form")
+	// Get list of all the keys
+	keysBytes, err := stub.GetState("PaperKeys")
+	if err != nil {
+		fmt.Println("Error retrieving paper keys")
+		return nil, errors.New("Error retrieving paper keys")
+	}
+	fmt.Println("DEBUG: unmarshalling keys")
+	var keys []string
+	err = json.Unmarshal(keysBytes, &keys)
+	if err != nil {
+		fmt.Println("Error payout failed unmarshalling paper keys")
+		return nil, errors.New("payout failed to unmarshal keys")
+	}
+	winner, err := strconv.Atoi(args[0])
+	if err != nil {
+		fmt.Println("error parsing winner")
+		return nil, errors.New("error parsing winner")
+	}
+	fmt.Println("DEBUG: Winner declared, Paying out bets.")
+	fmt.Println("DEBUG: calling GetAllCPs")
 	
-	var tr Transaction
-
-	fmt.Println("Unmarshalling Transaction")
-	err := json.Unmarshal([]byte(args[0]), &tr)
-	if err != nil {
-		fmt.Println("Error Unmarshalling Transaction")
-		return nil, errors.New("Invalid commercial paper issue")
-	}
-
-	fmt.Println("Getting State on CP " + tr.CUSIP)
-	cpBytes, err := stub.GetState(cpPrefix+tr.CUSIP)
-	if err != nil {
-		fmt.Println("CUSIP not found")
-		return nil, errors.New("CUSIP not found " + tr.CUSIP)
-	}
-
-	var cp CP
-	fmt.Println("Unmarshalling CP " + tr.CUSIP)
-	err = json.Unmarshal(cpBytes, &cp)
-	if err != nil {
-		fmt.Println("Error unmarshalling cp " + tr.CUSIP)
-		return nil, errors.New("Error unmarshalling cp " + tr.CUSIP)
-	}
-
-	var fromCompany Account
-	fmt.Println("Getting State on fromCompany " + tr.FromCompany)	
-	fromCompanyBytes, err := stub.GetState(accountPrefix+tr.FromCompany)
-	if err != nil {
-		fmt.Println("Account not found " + tr.FromCompany)
-		return nil, errors.New("Account not found " + tr.FromCompany)
-	}
-
-	fmt.Println("Unmarshalling FromCompany ")
-	err = json.Unmarshal(fromCompanyBytes, &fromCompany)
-	if err != nil {
-		fmt.Println("Error unmarshalling account " + tr.FromCompany)
-		return nil, errors.New("Error unmarshalling account " + tr.FromCompany)
-	}
-
-	var toCompany Account
-	fmt.Println("Getting State on ToCompany " + tr.ToCompany)
-	toCompanyBytes, err := stub.GetState(accountPrefix+tr.ToCompany)
-	if err != nil {
-		fmt.Println("Account not found " + tr.ToCompany)
-		return nil, errors.New("Account not found " + tr.ToCompany)
-	}
-
-	fmt.Println("Unmarshalling tocompany")
-	err = json.Unmarshal(toCompanyBytes, &toCompany)
-	if err != nil {
-		fmt.Println("Error unmarshalling account " + tr.ToCompany)
-		return nil, errors.New("Error unmarshalling account " + tr.ToCompany)
-	}
-
-	// Check for all the possible errors
-	ownerFound := false 
-	quantity := 0
-	for _, owner := range cp.Owners {
-		if owner.Company == tr.FromCompany {
-			ownerFound = true
-			quantity = owner.Quantity
-		}
-	}
+	var allCPs []CP
 	
-	// If fromCompany doesn't own this paper
-	if ownerFound == false {
-		fmt.Println("The company " + tr.FromCompany + "doesn't own any of this paper")
-		return nil, errors.New("The company " + tr.FromCompany + "doesn't own any of this paper")	
-	} else {
-		fmt.Println("The FromCompany does own this paper")
-	}
-	
-	// If fromCompany doesn't own enough quantity of this paper
-	if quantity < tr.Quantity {
-		fmt.Println("The company " + tr.FromCompany + "doesn't own enough of this paper")		
-		return nil, errors.New("The company " + tr.FromCompany + "doesn't own enough of this paper")			
-	} else {
-		fmt.Println("The FromCompany owns enough of this paper")
-	}
-	
-	amountToBeTransferred := float64(tr.Quantity) * cp.Par
-	amountToBeTransferred -= (amountToBeTransferred) * (cp.Discount / 100.0) * (float64(cp.Maturity) / 360.0)
-	
-	// If toCompany doesn't have enough cash to buy the papers
-	if toCompany.CashBalance < amountToBeTransferred {
-		fmt.Println("The company " + tr.ToCompany + "doesn't have enough cash to purchase the papers")		
-		return nil, errors.New("The company " + tr.ToCompany + "doesn't have enough cash to purchase the papers")	
-	} else {
-		fmt.Println("The ToCompany has enough money to be transferred for this paper")
-	}
-	
-	toCompany.CashBalance -= amountToBeTransferred
-	fromCompany.CashBalance += amountToBeTransferred
-
-	toOwnerFound := false
-	for key, owner := range cp.Owners {
-		if owner.Company == tr.FromCompany {
-			fmt.Println("Reducing Quantity from the FromCompany")
-			cp.Owners[key].Quantity -= tr.Quantity
-		}
-		if owner.Company == tr.ToCompany {
-			fmt.Println("Increasing Quantity from the ToCompany")
-			toOwnerFound = true
-			cp.Owners[key].Quantity += tr.Quantity
-		}
-	}
-	
-	if toOwnerFound == false {
-		var newOwner Owner
-		fmt.Println("As ToOwner was not found, appending the owner to the CP")
-		newOwner.Quantity = tr.Quantity
-		newOwner.Company = tr.ToCompany
-		cp.Owners = append(cp.Owners, newOwner)
-	}
-	
-	fromCompany.AssetsIds = append(fromCompany.AssetsIds, tr.CUSIP)
-
-	// Write everything back
-	// To Company
-	toCompanyBytesToWrite, err := json.Marshal(&toCompany)
-	if err != nil {
-		fmt.Println("Error marshalling the toCompany")
-		return nil, errors.New("Error marshalling the toCompany")
-	}
-	fmt.Println("Put state on toCompany")
-	err = stub.PutState(accountPrefix+tr.ToCompany, toCompanyBytesToWrite)
-	if err != nil {
-		fmt.Println("Error writing the toCompany back")
-		return nil, errors.New("Error writing the toCompany back")
-	}
+	// Get all the cps
+	for _, value := range keys {
+		fmt.Println("DEBUG: getting CP")
+		cpBytes, err := stub.GetState(value)
 		
-	// From company
-	fromCompanyBytesToWrite, err := json.Marshal(&fromCompany)
-	if err != nil {
-		fmt.Println("Error marshalling the fromCompany")
-		return nil, errors.New("Error marshalling the fromCompany")
+		var cp CP
+		err = json.Unmarshal(cpBytes, &cp)
+		if err != nil {
+			fmt.Println("Error retrieving cp " + value)
+			return nil, errors.New("Error retrieving cp " + value)
+		}
+		
+		fmt.Println("Appending CP" + value)
+		allCPs = append(allCPs, cp)
 	}
-	fmt.Println("Put state on fromCompany")
-	err = stub.PutState(accountPrefix+tr.FromCompany, fromCompanyBytesToWrite)
-	if err != nil {
-		fmt.Println("Error writing the fromCompany back")
-		return nil, errors.New("Error writing the fromCompany back")
+	fmt.Println("DEBUG: AllCPs retrieved")
+
+	// Get all the cps
+	for _, value := range allCPs {
+		fmt.Println("DEBUG: getting account for " + value.Issuer)
+		useracc, err := GetCompany(value.Issuer, stub)
+		if err != nil {
+			fmt.Println("Error from getCompany")
+			return nil, err
+		}
+		if value.Qty == winner {
+			useracc.CashBalance = useracc.CashBalance + (2 * value.Par)
+		}
+		if value.Qty != winner {
+			useracc.CashBalance = useracc.CashBalance - value.Par
+		}
+		fmt.Println("Marshalling account bytes to write")
+		accountBytesToWrite, err := json.Marshal(useracc)
+		if err != nil {
+			fmt.Println("Error marshalling account")
+			return nil, errors.New("Error marshalling account")
+		}
+		err = stub.PutState(accountPrefix + value.Issuer, accountBytesToWrite)
+		if err != nil {
+			fmt.Println("Error putting state on accountBytesToWrite")
+			return nil, errors.New("Error issuing payouts")
+		}
 	}
-	
-	// cp
-	cpBytesToWrite, err := json.Marshal(&cp)
-	if err != nil {
-		fmt.Println("Error marshalling the cp")
-		return nil, errors.New("Error marshalling the cp")
-	}
-	fmt.Println("Put state on CP")
-	err = stub.PutState(cpPrefix+tr.CUSIP, cpBytesToWrite)
-	if err != nil {
-		fmt.Println("Error writing the cp back")
-		return nil, errors.New("Error writing the cp back")
-	}
-	
-	fmt.Println("Successfully completed Invoke")
+    fmt.Println("Reinitializing paper keys collection for new game")
+	var blank []string
+	blankBytes, _ := json.Marshal(&blank)
+	err = stub.PutState("PaperKeys", blankBytes)
+    if err != nil {
+        fmt.Println("Failed to reinitialize paper key collection")
+    }
+
+	fmt.Println("Reinitialization complete")
 	return nil, nil
 }
-
 func (t *SimpleChaincode) Query(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
 	//need one arg
 	if len(args) < 1 {
@@ -752,7 +631,7 @@ func (t *SimpleChaincode) Query(stub *shim.ChaincodeStub, function string, args 
 				fmt.Println("Error marshalling the cp")
 				return nil, err1
 			}	
-			fmt.Println("All success, returning the cp")
+			fmt.Println("All success, returning the cp - test")
 			return cpBytes, nil		 
 		}
 	} else if args[0] == "GetCompany" {
@@ -808,9 +687,9 @@ func (t *SimpleChaincode) Invoke(stub *shim.ChaincodeStub, function string, args
     } else if function == "init" {
         fmt.Println("Firing init")
         return t.Init(stub, "init", args)
-    } else if function == "payoutBets" {
-		fmt.Println("Firing payoutBets")
-		return t.payoutBets(stub, args)
+	} else if function == "clear" {
+		fmt.Println("Firing clear")
+		return t.clear(stub)
 	}
 
 	return nil, errors.New("Received unknown function invocation")
