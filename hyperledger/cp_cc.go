@@ -141,31 +141,17 @@ func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([
 		fmt.Println("error parsing winner")
 		return nil, errors.New("error parsing winner")
 	}
-
-	// Get list of all the keys
-	keysBytes, err := stub.GetState("PaperKeys")
+	fmt.Println("DEBUG: Winner declared, player " + winner + " is the winner! Paying out bets.")
+	
+	allCPs, err := GetAllCPs(stub)
 	if err != nil {
-		fmt.Println("Error retrieving paper keys")
-		return nil, errors.New("Error retrieving paper keys")
-	}
-	var keys []string
-	err = json.Unmarshal(keysBytes, &keys)
-	if err != nil {
-		fmt.Println("Error unmarshalling paper keys")
-		return nil, errors.New("Error unmarshalling paper keys")
+		fmt.Println("Error from getallcps")
+		return nil, err
 	}
 
 	// Get all the cps
-	for _, value := range keys {
-		cpBytes, err := stub.GetState(value)
-		
-		var cp CP
-		err = json.Unmarshal(cpBytes, &cp)
-		if err != nil {
-			fmt.Println("Error retrieving cp " + value)
-			return nil, errors.New("Error retrieving cp " + value)
-		}
-		accId := cp.Issuer + "000A" + cp.Issuer
+	for _, value := range allCPs {
+		accId := accountPrefix + cp.Issuer
 		accBytes, err := stub.GetState(accId)
 		if err != nil {
 			fmt.Println("Error retrieving user account")
@@ -176,11 +162,11 @@ func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([
 			fmt.Println("Error unmarshalling paper keys")
 			return nil, errors.New("Error unmarshalling paper keys")
 		}
-		if cp.Qty == winner {
-			account.CashBalance = account.CashBalance + (2 * cp.Par)
+		if value.Qty == winner {
+			account.CashBalance = account.CashBalance + (2 * value.Par)
 		}
-		if cp.Qty != winner {
-			account.CashBalance = account.CashBalance - cp.Par
+		if value.Qty != winner {
+			account.CashBalance = account.CashBalance - value.Par
 		}
 		fmt.Println("Marshalling account bytes to write")
 		accountBytesToWrite, err := json.Marshal(&account)
@@ -194,6 +180,15 @@ func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([
 			return nil, errors.New("Error issuing payouts")
 		}
 	}
+    fmt.Println("Reinitializing paper keys collection for new game")
+	var blank []string
+	blankBytes, _ := json.Marshal(&blank)
+	err := stub.PutState("PaperKeys", blankBytes)
+    if err != nil {
+        fmt.Println("Failed to reinitialize paper key collection")
+    }
+
+	fmt.Println("Reinitialization complete")
 	return nil, nil
 }
 
