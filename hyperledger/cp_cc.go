@@ -133,23 +133,67 @@ func (t *SimpleChaincode) payoutBets(stub *shim.ChaincodeStub, args []string) ([
 		fmt.Println("error invalid arguments")
 		return nil, errors.New("Incorrect number of arguments.")
 	}
+	var err error
+	var account Account
 	
-	allCPs, err := GetAllCPs(stub)
+	winner, err := strconv.Atoi(args[0])
 	if err != nil {
-		fmt.Println("Error from getallcps")
-		return nil, err
+		fmt.Println("error parsing winner")
+		return nil, errors.New("error parsing winner")
 	}
-	
-	fmt.Println("bets paid out successfully")
-	fmt.Println("resetting paper keys collection")
-	var blank []string
-	blankBytes, _ := json.Marshal(&blank)
-	err := stub.PutState("PaperKeys", blankBytes)
-    if err != nil {
-        fmt.Println("Failed to initialize paper key collection")
-    }
 
-	fmt.Println("Initialization complete")
+	// Get list of all the keys
+	keysBytes, err := stub.GetState("PaperKeys")
+	if err != nil {
+		fmt.Println("Error retrieving paper keys")
+		return nil, errors.New("Error retrieving paper keys")
+	}
+	var keys []string
+	err = json.Unmarshal(keysBytes, &keys)
+	if err != nil {
+		fmt.Println("Error unmarshalling paper keys")
+		return nil, errors.New("Error unmarshalling paper keys")
+	}
+
+	// Get all the cps
+	for _, value := range keys {
+		cpBytes, err := stub.GetState(value)
+		
+		var cp CP
+		err = json.Unmarshal(cpBytes, &cp)
+		if err != nil {
+			fmt.Println("Error retrieving cp " + value)
+			return nil, errors.New("Error retrieving cp " + value)
+		}
+		accId := cp.Issuer + "000A" + cp.Issuer
+		accBytes, err := stub.GetState(accId)
+		if err != nil {
+			fmt.Println("Error retrieving user account")
+			return nil, errors.New("Error retrieving user account")
+		}
+		err = json.Unmarshal(accBytes, &account)
+		if err != nil {
+			fmt.Println("Error unmarshalling paper keys")
+			return nil, errors.New("Error unmarshalling paper keys")
+		}
+		if cp.Qty == winner {
+			account.CashBalance = account.CashBalance + (2 * cp.Par)
+		}
+		if cp.Qty != winner {
+			account.CashBalance = account.CashBalance - cp.Par
+		}
+		fmt.Println("Marshalling account bytes to write")
+		accountBytesToWrite, err := json.Marshal(&account)
+		if err != nil {
+			fmt.Println("Error marshalling account")
+			return nil, errors.New("Error issuing commercial paper")
+		}
+		err = stub.PutState(accId, accountBytesToWrite)
+		if err != nil {
+			fmt.Println("Error putting state on accountBytesToWrite")
+			return nil, errors.New("Error issuing payouts")
+		}
+	}
 	return nil, nil
 }
 
@@ -623,13 +667,11 @@ func (t *SimpleChaincode) transferPaper(stub *shim.ChaincodeStub, args []string)
 		if owner.Company == tr.FromCompany {
 			fmt.Println("Reducing Quantity from the FromCompany")
 			cp.Owners[key].Quantity -= tr.Quantity
-//			owner.Quantity -= tr.Quantity
 		}
 		if owner.Company == tr.ToCompany {
 			fmt.Println("Increasing Quantity from the ToCompany")
 			toOwnerFound = true
 			cp.Owners[key].Quantity += tr.Quantity
-//			owner.Quantity += tr.Quantity
 		}
 	}
 	
